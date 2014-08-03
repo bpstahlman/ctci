@@ -5,11 +5,16 @@
 // chess board so that none of them share the same row, column or diagonal. In
 // this case, "diagonal" means all diagonals, not just the two that bisect the
 // board.
+// IMPORTANT NOTE: After writing this, I checked solution and found that mine
+// was not optimal because it failed to take advantage of the fact that all
+// every column and every row must contain 1 and only 1 queen. The solution in
+// the CtCI book takes advantage of this, and consequently, is more efficient
+// (though this one still runs in a couple of seconds or so).
 
 import java.util.*;
 import java.io.*;
 
-enum DrawMode { TEXT, HTML };
+enum DrawMode { TEXT, HTML, HEX };
 class BoardMask implements Cloneable {
     private final static String CELL_SIZE = "1cm";
     private final static String BOARD_MARGIN = "1cm";
@@ -98,6 +103,9 @@ class BoardMask implements Cloneable {
         }
         sb.append("</table>\n");
     }
+    void drawHex(StringBuilder sb) {
+        sb.append(Long.toHexString(getLong()) + "\n");
+    }
     private long getMask(int row, int col) {
         return (1L << col) << (8 * row);
     }
@@ -139,6 +147,9 @@ class Board {
     void drawHtml(StringBuilder sb) {
         queens.drawHtml(sb);
     }
+    void drawHex(StringBuilder sb) {
+        queens.drawHex(sb);
+    }
 }
 
 public class Queens {
@@ -147,6 +158,8 @@ public class Queens {
     // Create list that will be filled with all possible boards.
     List<Board> boards = new ArrayList<Board>();
     void recurse(int numQueens, Board board) {
+        // Short-circuit if we've tried this combination before...
+        if (triedBoards.contains(board.getQueenMaskAsLong())) return;
         if (numQueens == 8) {
             // Leaf
             boards.add(board);
@@ -154,9 +167,6 @@ public class Queens {
             // This board is completely blocked.
             return;
         }
-        // If here, possible to add another queen, but don't recurse if we've
-        // tried this combination before...
-        if (triedBoards.contains(board.getQueenMaskAsLong())) return;
         //int numQueens = 0; // If this is kept, won't need input arg...
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
@@ -184,22 +194,36 @@ public class Queens {
         }
         sb.append("</body>\n</html>\n");
     }
+    void drawBoardsHex(StringBuilder sb) {
+        int i = 0;
+        for (Board board : boards) {
+            sb.append(String.format("%d.\t", ++i));
+            board.drawHex(sb);
+        }
+    }
     // Usage:
-    // java Queens [<HTML|TEXT>]
+    // java Queens [<HTML|TEXT|HEX>]
     // Note: Format defaults to HTML.
-    // Output: Visual representation of all possible boards, in either HTML or TEXT format.
+    // Output: Visual representation of all possible boards, in either HTML, TEXT, or HEX format.
     public static void main(String[] args) {
-        DrawMode drawMode = args.length == 0 || args[0].equals("HTML") ? DrawMode.HTML : DrawMode.TEXT;
+        String drawMode = args.length == 0 ? "TEXT" : args[0];
         Queens ob = new Queens();
         // Recurse to find all combinations.
         ob.recurse(0, new Board());
 
         // Display output.
         StringBuilder sb = new StringBuilder();
-        if (drawMode == DrawMode.TEXT)
-            ob.drawBoardsText(sb);
-        else
-            ob.drawBoardsHtml(sb);
+        switch (drawMode) {
+            case "HTML":
+                ob.drawBoardsHtml(sb);
+                break;
+            case "HEX":
+                ob.drawBoardsHex(sb);
+                break;
+            case "TEXT":
+            default:
+                ob.drawBoardsText(sb);
+        }
         System.out.println(sb);
     }
 
